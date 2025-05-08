@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Frost & Fig Tavern - D20 Roller</title>
+  <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background-image: url('https://www.transparenttextures.com/patterns/old-paper.png');
+      background-color: #e8d8b0;
+      color: #3a2a1a;
+      font-family: 'IM Fell English', serif;
+      text-align: center;
+      padding: 2em;
+      min-height: 100vh;
+    }
+    h1 {
+      font-size: 2.8em;
+      margin-bottom: 0.5em;
+      font-family: 'IM Fell English SC', serif;
+      color: #5c3a21;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+      letter-spacing: 1px;
+    }
+    .tavern-sign {
+      width: 200px;
+      margin: 0 auto 1em;
+      filter: drop-shadow(3px 3px 4px rgba(0, 0, 0, 0.3));
+    }
+    .dice-container {
+      perspective: 1000px;
+      margin: 2em auto;
+      width: 150px;
+      height: 150px;
+    }
+    .d20 {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 1.5s ease-out;
+    }
+    .d20-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background-image: url('https://i.imgur.com/JWZJj3y.png'); /* D20 texture */
+      background-size: cover;
+      border: 2px solid #5c3a21;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2em;
+      font-weight: bold;
+      color: #3a2a1a;
+      box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.3);
+    }
+    button {
+      font-size: 1.5em;
+      padding: 0.7em 2em;
+      background: #8b5a2b;
+      color: #fff4e6;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.3);
+      font-family: 'IM Fell English SC', serif;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.3s;
+      margin-top: 1em;
+    }
+    button:hover {
+      background: #a1662f;
+      transform: translateY(-2px);
+      box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+    }
+    .result {
+      font-size: 2.2em;
+      margin: 1em auto;
+      background: rgba(255, 245, 230, 0.7);
+      padding: 0.5em 1em;
+      border-radius: 8px;
+      border: 2px solid #8b5a2b;
+      max-width: 300px;
+      font-family: 'IM Fell English SC', serif;
+      box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+    }
+    .critical {
+      animation: glow 1s infinite alternate;
+      color: #c00;
+    }
+    @keyframes glow {
+      from { text-shadow: 0 0 5px #fff, 0 0 10px #ff3333; }
+      to { text-shadow: 0 0 10px #fff, 0 0 20px #ff0000; }
+    }
+  </style>
+</head>
+<body>
+  <img src="https://i.imgur.com/LHfuvAO.png" alt="Tavern Sign" class="tavern-sign"> <!-- Replace with your own image -->
+  <h1>Frost & Fig Tavern</h1>
+  <h2>Roll the D20 of Fate</h2>
+  
+  <div class="dice-container">
+    <div class="d20" id="d20"></div>
+  </div>
+  
+  <button onclick="rollD20()">Roll the Dice</button>
+  <div class="result" id="result"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA-39DOccAFD15uOMMw-xAK_LPwxYWI4OY",
+      authDomain: "frost-and-fig-s-fate.firebaseapp.com",
+      projectId: "frost-and-fig-s-fate",
+      storageBucket: "frost-and-fig-s-fate.appspot.com",
+      messagingSenderId: "293358192901",
+      appId: "1:293358192901:web:ea8431a91c658558dccf6c",
+      measurementId: "G-0RELGZL5XW"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Sound effects
+    const nat1Sound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-arcade-retro-game-over-213.mp3');
+    const nat20Sound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-unlock-game-notification-253.mp3');
+    const rollSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-dice-rolling-1991.mp3');
+
+    // D20 faces (simplified 3D effect)
+    const d20 = document.getElementById('d20');
+    const resultDisplay = document.getElementById('result');
+
+    function getRandomRotation() {
+      return {
+        x: Math.floor(Math.random() * 360),
+        y: Math.floor(Math.random() * 360),
+        z: Math.floor(Math.random() * 360)
+      };
+    }
+
+    window.rollD20 = async function() {
+      // Play roll sound
+      rollSound.play();
+      
+      // Animate dice
+      const rotations = getRandomRotation();
+      d20.style.transform = `rotateX(${rotations.x}deg) rotateY(${rotations.y}deg) rotateZ(${rotations.z}deg)`;
+      
+      // Delay result for dramatic effect
+      setTimeout(async () => {
+        const roll = Math.floor(Math.random() * 20) + 1;
+        resultDisplay.textContent = `You rolled: ${roll}`;
+        
+        // Critical effects
+        if (roll === 1) {
+          resultDisplay.classList.add('critical');
+          nat1Sound.play();
+        } else if (roll === 20) {
+          resultDisplay.classList.add('critical');
+          nat20Sound.play();
+        } else {
+          resultDisplay.classList.remove('critical');
+        }
+
+        // Log to Firebase
+        try {
+          await addDoc(collection(db, "rolls"), {
+            roll: roll,
+            timestamp: new Date().toISOString()
+          });
+        } catch (e) {
+          console.error("Error logging roll:", e);
+        }
+      }, 1500);
+    };
+
+    // Initialize dice
+    d20.style.transform = 'rotateX(20deg) rotateY(45deg)';
+  </script>
+</body>
+</html>
